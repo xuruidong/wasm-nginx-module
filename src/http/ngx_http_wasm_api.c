@@ -340,6 +340,8 @@ ngx_http_wasm_set_req_header(ngx_http_request_t *r,
 
                 if (wh->ty == PROXY_WASM_REQUEST_HEADER_PATH) {
                     u_char              byte;
+                    u_char              *args;
+                    size_t              uri_len = val_len;
 
                     if (ngx_http_wasm_check_unsafe_uri_bytes(r, (u_char *) val, val_len, &byte)
                         != NGX_OK)
@@ -351,15 +353,29 @@ ngx_http_wasm_set_req_header(ngx_http_request_t *r,
                         return NGX_ERROR;
                     }
 
-                    p = ngx_palloc(r->pool, val_len);
+                    args = ngx_strlchr((u_char *) val, (u_char *) val + val_len, '?');
+                    if (args) {
+                        uri_len = args - (u_char *) val;
+                        r->args.data = ngx_palloc(r->pool, val_len - uri_len - 1);
+                        if (r->args.data == NULL) {
+                            return NGX_ERROR;
+                        }
+                        ngx_memcpy(r->args.data, args + 1, val_len - uri_len - 1);
+                        r->args.len = val_len - uri_len - 1;
+                    } else {
+                        r->args.data = NULL;
+                        r->args.len = 0;
+                    }
+
+                    p = ngx_palloc(r->pool, uri_len);
                     if (p == NULL) {
                         return NGX_ERROR;
                     }
                     r->uri.data = p;
 
-                    ngx_memcpy(r->uri.data, val, val_len);
+                    ngx_memcpy(r->uri.data, val, uri_len);
 
-                    r->uri.len = val_len;
+                    r->uri.len = uri_len;
 
                     r->internal = 1;
                     r->valid_unparsed_uri = 0;
