@@ -729,7 +729,83 @@ int32_t
 proxy_set_buffer_bytes(int32_t type, int32_t start, int32_t length,
                        int32_t addr, int32_t size_addr)
 {
-    return PROXY_RESULT_UNIMPLEMENTED;
+    ngx_log_t            *log;
+    ngx_http_request_t   *r;
+    ngx_str_t            *buffer;
+    u_char               *data;
+    int32_t               data_len;
+    ngx_str_t            *new_body;
+
+    log = ngx_http_wasm_get_log();
+    must_get_req(r);
+
+    /* Get data to write */
+    data = ngx_wasm_vm->get_memory(log, addr, length);
+    if (data == NULL) {
+        return PROXY_RESULT_INVALID_MEMORY_ACCESS;
+    }
+
+    switch (type) {
+    case PROXY_BUFFER_TYPE_HTTP_REQUEST_BODY:
+        /* Request body modification not implemented yet */
+        return PROXY_RESULT_UNIMPLEMENTED;
+
+    case PROXY_BUFFER_TYPE_HTTP_RESPONSE_BODY:
+        /* Create new response body */
+        new_body = ngx_palloc(r->pool, sizeof(ngx_str_t));
+        if (new_body == NULL) {
+            ngx_log_error(NGX_LOG_ERR, log, 0, "no memory");
+            return PROXY_RESULT_INTERNAL_FAILURE;
+        }
+
+        new_body->data = ngx_palloc(r->pool, length);
+        if (new_body->data == NULL) {
+            ngx_log_error(NGX_LOG_ERR, log, 0, "no memory");
+            return PROXY_RESULT_INTERNAL_FAILURE;
+        }
+
+        ngx_memcpy(new_body->data, data, length);
+        new_body->len = length;
+
+        /* Set new response body */
+        ngx_http_wasm_set_body(new_body);
+        
+        /* Also set to wasm_main_conf->body for further processing */
+        ngx_http_wasm_main_conf_t *wmcf = ngx_http_get_module_main_conf(r, ngx_http_wasm_module);
+        if (wmcf) {
+            wmcf->body = *new_body;
+        }
+
+        /* Update Nginx core response body related fields */
+        r->headers_out.content_length_n = length;
+        if (r->headers_out.content_length == NULL) {
+            r->headers_out.content_length = ngx_list_push(&r->headers_out.headers);
+            if (r->headers_out.content_length == NULL) {
+                ngx_log_error(NGX_LOG_ERR, log, 0, "no memory");
+                return PROXY_RESULT_INTERNAL_FAILURE;
+            }
+            r->headers_out.content_length->hash = 1;
+            ngx_str_set(&r->headers_out.content_length->key, "Content-Length");
+        }
+        r->headers_out.content_length->value.data = ngx_palloc(r->pool, NGX_OFF_T_LEN);
+        if (r->headers_out.content_length->value.data == NULL) {
+            ngx_log_error(NGX_LOG_ERR, log, 0, "no memory");
+            return PROXY_RESULT_INTERNAL_FAILURE;
+        }
+        r->headers_out.content_length->value.len = ngx_sprintf(r->headers_out.content_length->value.data, "%O", length) 
+                                                 - r->headers_out.content_length->value.data;
+
+        /* Make sure status code is set */
+        if (r->headers_out.status == 0) {
+            r->headers_out.status = NGX_HTTP_OK;
+        }
+        break;
+
+    default:
+        return PROXY_RESULT_UNIMPLEMENTED;
+    }
+
+    return PROXY_RESULT_OK;
 }
 
 

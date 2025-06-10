@@ -36,6 +36,7 @@ ngx_http_request_t *ngx_http_wasm_get_req(void);
 ngx_log_t *ngx_http_wasm_get_log(void);
 ngx_str_t *ngx_http_wasm_get_plugin_name(void);
 const ngx_str_t *ngx_http_wasm_get_body(void);
+void ngx_http_wasm_set_body(ngx_str_t *body);
 
 
 #endif // NGX_HTTP_WASM_STATE_H

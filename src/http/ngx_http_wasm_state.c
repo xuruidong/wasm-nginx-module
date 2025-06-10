@@ -86,3 +86,14 @@ ngx_http_wasm_get_body(void)
 
     return &cur_state->body;
 }
+
+
+void
+ngx_http_wasm_set_body(ngx_str_t *body)
+{
+    if (cur_state == NULL) {
+        return;
+    }
+
+    cur_state->body = *body;
+}
