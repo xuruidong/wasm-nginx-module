@@ -739,11 +739,12 @@ proxy_set_buffer_bytes(int32_t type, int32_t start, int32_t length,
 
     log = ngx_http_wasm_get_log();
     must_get_req(r);
-    ngx_log_error(NGX_LOG_ERR, log, 0, "run in proxy_set_buffer_bytes");
+    ngx_log_error(NGX_LOG_ERR, log, 0, "run in proxy_set_buffer_bytes, type=%d, start=%d, length=%d, addr=%d, size_addr=%d", type, start, length, addr, size_addr);
 
     /* Get data to write */
     data = ngx_wasm_vm->get_memory(log, addr, length);
     if (data == NULL) {
+        ngx_log_error(NGX_LOG_ERR, log, 0, "run in [proxy_set_buffer_bytes], return PROXY_RESULT_INVALID_MEMORY_ACCESS, ");
         return PROXY_RESULT_INVALID_MEMORY_ACCESS;
     }
 
