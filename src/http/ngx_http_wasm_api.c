@@ -736,10 +736,10 @@ proxy_set_buffer_bytes(int32_t type, int32_t start, int32_t length,
     int32_t               data_len;
     ngx_str_t            *new_body;
 
-    ngx_log_error(NGX_LOG_ERR, log, 0, "run in proxy_set_buffer_bytes");
 
     log = ngx_http_wasm_get_log();
     must_get_req(r);
+    ngx_log_error(NGX_LOG_ERR, log, 0, "run in proxy_set_buffer_bytes");
 
     /* Get data to write */
     data = ngx_wasm_vm->get_memory(log, addr, length);
