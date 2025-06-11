@@ -741,10 +741,18 @@ proxy_set_buffer_bytes(int32_t type, int32_t start, int32_t length,
     must_get_req(r);
     ngx_log_error(NGX_LOG_ERR, log, 0, "run in proxy_set_buffer_bytes, type=%d, start=%d, length=%d, addr=%d, size_addr=%d", type, start, length, addr, size_addr);
 
-    /* Get data to write */
-    data = ngx_wasm_vm->get_memory(log, addr, length);
+    /* Get actual data length from size_addr */
+    int32_t *p_size = (int32_t *) ngx_wasm_vm->get_memory(log, size_addr, sizeof(int32_t));
+    if (p_size == NULL) {
+        ngx_log_error(NGX_LOG_ERR, log, 0, "failed to get data size from size_addr");
+        return PROXY_RESULT_INVALID_MEMORY_ACCESS;
+    }
+    int32_t actual_length = *p_size;
+    
+    /* Get data to write using actual length */
+    data = ngx_wasm_vm->get_memory(log, addr, actual_length);
     if (data == NULL) {
-        ngx_log_error(NGX_LOG_ERR, log, 0, "run in [proxy_set_buffer_bytes], return PROXY_RESULT_INVALID_MEMORY_ACCESS, ");
+        ngx_log_error(NGX_LOG_ERR, log, 0, "failed to get data from wasm memory");
         return PROXY_RESULT_INVALID_MEMORY_ACCESS;
     }
 
