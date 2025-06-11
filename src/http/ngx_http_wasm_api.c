@@ -748,7 +748,7 @@ proxy_set_buffer_bytes(int32_t type, int32_t start, int32_t length,
         return PROXY_RESULT_INVALID_MEMORY_ACCESS;
     }
     int32_t actual_length = *p_size;
-    
+    ngx_log_error(NGX_LOG_ERR, log, 0, "actual_length=%d", actual_length);
     /* Get data to write using actual length */
     data = ngx_wasm_vm->get_memory(log, addr, actual_length);
     if (data == NULL) {
@@ -769,14 +769,14 @@ proxy_set_buffer_bytes(int32_t type, int32_t start, int32_t length,
             return PROXY_RESULT_INTERNAL_FAILURE;
         }
 
-        new_body->data = ngx_palloc(r->pool, length);
+        new_body->data = ngx_palloc(r->pool, actual_length);
         if (new_body->data == NULL) {
             ngx_log_error(NGX_LOG_ERR, log, 0, "no memory");
             return PROXY_RESULT_INTERNAL_FAILURE;
         }
 
-        ngx_memcpy(new_body->data, data, length);
-        new_body->len = length;
+        ngx_memcpy(new_body->data, data, actual_length);
+        new_body->len = actual_length;
 
         /* Set new response body */
         ngx_http_wasm_set_body(new_body);
@@ -788,7 +788,7 @@ proxy_set_buffer_bytes(int32_t type, int32_t start, int32_t length,
         }
 
         /* Update Nginx core response body related fields */
-        r->headers_out.content_length_n = length;
+        r->headers_out.content_length_n = actual_length;
         if (r->headers_out.content_length == NULL) {
             r->headers_out.content_length = ngx_list_push(&r->headers_out.headers);
             if (r->headers_out.content_length == NULL) {
@@ -803,7 +803,7 @@ proxy_set_buffer_bytes(int32_t type, int32_t start, int32_t length,
             ngx_log_error(NGX_LOG_ERR, log, 0, "no memory");
             return PROXY_RESULT_INTERNAL_FAILURE;
         }
-        r->headers_out.content_length->value.len = ngx_sprintf(r->headers_out.content_length->value.data, "%O", length) 
+        r->headers_out.content_length->value.len = ngx_sprintf(r->headers_out.content_length->value.data, "%O", actual_length) 
                                                  - r->headers_out.content_length->value.data;
 
         /* Make sure status code is set */
