@@ -739,20 +739,15 @@ proxy_set_buffer_bytes(int32_t type, int32_t start, int32_t length,
 
     log = ngx_http_wasm_get_log();
     must_get_req(r);
-    ngx_log_error(NGX_LOG_ERR, log, 0, "run in proxy_set_buffer_bytes, type=%d, start=%d, length=%d, addr=%d, size_addr=%d", type, start, length, addr, size_addr);
+    ngx_log_error(NGX_LOG_ERR, log, 0, "[apisix-wasm-go-mcp-plugin]run in proxy_set_buffer_bytes, type=%d, start=%d, length=%d, addr=%d, size_addr=%d", type, start, length, addr, size_addr);
 
     /* Get actual data length from size_addr */
-    int32_t *p_size = (int32_t *) ngx_wasm_vm->get_memory(log, size_addr, sizeof(int32_t));
-    if (p_size == NULL) {
-        ngx_log_error(NGX_LOG_ERR, log, 0, "failed to get data size from size_addr");
-        return PROXY_RESULT_INVALID_MEMORY_ACCESS;
-    }
-    int32_t actual_length = *p_size;
-    ngx_log_error(NGX_LOG_ERR, log, 0, "actual_length=%d", actual_length);
+    int32_t actual_length = size_addr;
+    ngx_log_error(NGX_LOG_DEBUG, log, 0, "[apisix-wasm-go-mcp-plugin] actual_length=%d", actual_length);
     /* Get data to write using actual length */
     data = ngx_wasm_vm->get_memory(log, addr, actual_length);
     if (data == NULL) {
-        ngx_log_error(NGX_LOG_ERR, log, 0, "failed to get data from wasm memory");
+        ngx_log_error(NGX_LOG_ERR, log, 0, "[apisix-wasm-go-mcp-plugin] failed to get data from wasm memory");
         return PROXY_RESULT_INVALID_MEMORY_ACCESS;
     }
 
@@ -785,14 +780,18 @@ proxy_set_buffer_bytes(int32_t type, int32_t start, int32_t length,
         ngx_http_wasm_main_conf_t *wmcf = ngx_http_get_module_main_conf(r, ngx_http_wasm_module);
         if (wmcf) {
             wmcf->body = *new_body;
+            wmcf->code = NGX_HTTP_OK;
         }
+
+        ngx_log_error(NGX_LOG_ERR, log, 0, "[apisix-wasm-go-mcp-plugin]  new body: %V", new_body);
 
         /* Update Nginx core response body related fields */
         r->headers_out.content_length_n = actual_length;
+        r->headers_out.status = NGX_HTTP_OK;
         if (r->headers_out.content_length == NULL) {
             r->headers_out.content_length = ngx_list_push(&r->headers_out.headers);
             if (r->headers_out.content_length == NULL) {
-                ngx_log_error(NGX_LOG_ERR, log, 0, "no memory");
+                ngx_log_error(NGX_LOG_ERR, log, 0, "[apisix-wasm-go-mcp-plugin] no memory");
                 return PROXY_RESULT_INTERNAL_FAILURE;
             }
             r->headers_out.content_length->hash = 1;
@@ -800,7 +799,7 @@ proxy_set_buffer_bytes(int32_t type, int32_t start, int32_t length,
         }
         r->headers_out.content_length->value.data = ngx_palloc(r->pool, NGX_OFF_T_LEN);
         if (r->headers_out.content_length->value.data == NULL) {
-            ngx_log_error(NGX_LOG_ERR, log, 0, "no memory");
+            ngx_log_error(NGX_LOG_ERR, log, 0, "[apisix-wasm-go-mcp-plugin] 803 no memory");
             return PROXY_RESULT_INTERNAL_FAILURE;
         }
         r->headers_out.content_length->value.len = ngx_sprintf(r->headers_out.content_length->value.data, "%O", actual_length) 

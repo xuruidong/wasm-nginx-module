@@ -366,9 +366,18 @@ function _M.on_http_response_body(plugin_ctx)
     -- TODO: rewrite this by exporting FFI interfaces in OpenResty to save a copy
     local body = ngx.arg[1]
     local eof = ngx.arg[2]
+
     local rc = C.ngx_http_wasm_on_http(plugin_ctx, r, HTTP_RESPONSE_BODY, body, #body, eof)
     if rc < 0 then
         return nil, "failed to run proxy_on_http_response_body"
+    end
+
+    local p = C.ngx_http_wasm_fetch_local_body(r)
+    if p ~= nil then
+        local body2 = ffi_str(p.data, p.len)
+        if body2 ~= ngx.arg[1] then
+            ngx.arg[1] = body2
+        end
     end
 
     return true

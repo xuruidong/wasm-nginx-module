@@ -677,12 +677,15 @@ ngx_http_wasm_on_http(ngx_http_wasm_plugin_ctx_t *hwp_ctx, ngx_http_request_t *r
         return NGX_DECLINED;
     }
 
+    
     wmcf = ngx_http_get_module_main_conf(r, ngx_http_wasm_module);
     hwp_ctx->state->r = r;
 
     if (body != NULL) {
         hwp_ctx->state->body.data = (u_char *) body;
         hwp_ctx->state->body.len = size;
+        wmcf->body.data = (u_char *) body;
+        wmcf->body.len = size;
     }
 
     ngx_http_wasm_set_state(hwp_ctx->state);
